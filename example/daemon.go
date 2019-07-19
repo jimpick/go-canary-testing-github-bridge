@@ -5,46 +5,19 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/go-github/v26/github"
+	ghbridge "github.com/jimpick/go-canary-testing-github-bridge"
 )
 
 var webhookSecretKey = []byte("ipfs_secret")
 
 func main() {
-	http.HandleFunc("/webhook", func(w http.ResponseWriter, r *http.Request) {
-		payload, err := github.ValidatePayload(r, webhookSecretKey)
-		if err != nil {
-			panic(err)
+	c := make(chan interface{})
+	handler := ghbridge.GetHandler(c, webhookSecretKey)
+	http.HandleFunc("/webhook", handler)
+	go func() {
+		for msg := range c {
+			fmt.Printf("%T %v\n", msg, msg)
 		}
-		event, err := github.ParseWebHook(github.WebHookType(r), payload)
-		if err != nil {
-			panic(err)
-		}
-		// fmt.Println("GitHub event", event)
-		switch event := event.(type) {
-		case *github.PushEvent:
-			fmt.Println("Push",
-				event.GetRepo().GetFullName(),
-				event.GetRef(),
-				event.GetAfter())
-		case *github.PullRequestEvent:
-			fmt.Println("PullRequest",
-				event.GetRepo().GetFullName(),
-				event.GetNumber(),
-				event.GetAction(), // opened, synchronize
-				event.GetPullRequest().GetHead().GetRepo().GetFullName(),
-				event.GetPullRequest().GetHead().GetRef(),
-				event.GetPullRequest().GetHead().GetSHA())
-		case *github.IssueCommentEvent:
-			fmt.Println("IssueComment",
-				event.GetRepo().GetFullName(),
-				event.GetIssue().GetNumber(),
-				event.GetAction()) // created
-		default:
-			fmt.Printf("GitHub event type %T\n", event)
-		}
-		fmt.Fprintf(w, "OK")
-		fmt.Println()
-	})
+	}()
 	log.Fatal(http.ListenAndServe(":14001", nil))
 }
