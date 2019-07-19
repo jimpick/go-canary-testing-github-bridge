@@ -1,4 +1,4 @@
-module github.com/jimpick/go-github-webhook-receiver
+module github.com/jimpick/go-canary-testing-github-bridge
 
 require (
 	github.com/cespare/reflex v0.2.0 // indirect
